@@ -31,23 +31,23 @@ public class Cell : MonoBehaviour
     {
         float tiempoVida = Time.time - tiempoNacimiento;
 
-        if (gameController != null && indiceExperiencia >= 0 && indiceExperiencia < gameController.experienciasActuales.Count)
+        if (gameController != null && indiceExperiencia >= 0 && indiceExperiencia < gameController.currentExperiences.Count)
         {
-            var experiencia = gameController.experienciasActuales[indiceExperiencia];
-            experiencia.tiempoVida = tiempoVida;
+            var experiencia = gameController.currentExperiences[indiceExperiencia];
+            experiencia.timeLife = tiempoVida;
 
             if (fueDestruidaPorJugador)
             {
-                experiencia.sobrevivio = false;
+                experiencia.survived = false;
 
                 // Registrar esta célula como la última eliminada
-                gameController.RegistrarUltimaCelulaEliminada(experiencia);
+                gameController.RegisterLastCellDeleted(experiencia);
             }
             else
             {
-                experiencia.sobrevivio = true;
-                Debug.Log($"Célula {idCelula} sobrevivió hasta el final de su vida.");
+                experiencia.survived = true;
             }
         }
+        gameController.UpdateCounter();
     }
 }

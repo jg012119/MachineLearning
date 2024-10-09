@@ -1,92 +1,113 @@
 using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 using System.Collections.Generic;
 
 public class GameController : MonoBehaviour
 {
     public GameObject celulaPrefab;
-    public int numeroDeCelulas = 15;
-    public float intervaloTiempo = 10f;
+    public int numberofcells = 15;
+    public float intervalTime = 10f;
 
-    private int contadorGeneraciones = 0;
-    private int contadorCelulas = 0;
+    private int counterGenerations = 0;
+    private int countercells = 0;
 
-    private List<GameObject> celulasExistentes = new List<GameObject>();
+    private List<GameObject> existingcells = new List<GameObject>();
+
+    public Text quantityCells;
+    private int counterDestroyedCells = 0;
+
+    public Text rounds;
+    private int countRounds = 0;
 
     [System.Serializable]
-    public class ExperienciaCelula
+    public class ExperienceCell
     {
         public Color color;
-        public float tamaño;
-        public bool sobrevivio;
-        public int generacion;
-        public int idPadre;
-        public float tiempoVida; // Tiempo que la célula estuvo viva
+        public float size;
+        public bool survived;
+        public int generation;
+        public int idFather;
+        public float timeLife; // Tiempo que la célula estuvo viva
     }
 
-    private List<ExperienciaCelula> experienciasPrevias = new List<ExperienciaCelula>();
-    public List<ExperienciaCelula> experienciasActuales = new List<ExperienciaCelula>();
-    private List<ExperienciaCelula> experienciasSupervivientes = new List<ExperienciaCelula>();
+    private List<ExperienceCell> previousExperiences = new List<ExperienceCell>();
+    public List<ExperienceCell> currentExperiences = new List<ExperienceCell>();
+    private List<ExperienceCell> experiencesSurvivors = new List<ExperienceCell>();
 
     // Referencia a la última célula eliminada
-    private ExperienciaCelula ultimaCelulaEliminada;
+    private ExperienceCell lastCellDeleted;
 
     // Variables para ajustar la tasa de mutación
-    private float variacionInicial = 0.5f; // Mutación inicial alta
-    private float variacionMinima = 0.01f; // Mutación mínima
-    private float variacionActual;
+    private float initialvariation = 0.5f; // Mutación inicial alta
+    private float minimumVariation = 0.01f; // Mutación mínima
+    private float currentvariation;
 
     void Start()
     {
-        variacionActual = variacionInicial;
-        GenerarCelulasIniciales();
-        StartCoroutine(ControlarGeneraciones());
+        currentvariation = initialvariation;
+        GenerateInitialCells();
+        StartCoroutine(ControlGenerations());
+    }
+    public void UpdateCounter()
+    {
+        // Incrementar el contador
+        counterDestroyedCells++;
+
+        // Verificar si el objeto 'cantidadText' aún existe antes de actualizar el texto
+        if (quantityCells != null)
+        {
+            // Actualizar el texto con la cantidad de células destruidas
+            quantityCells.text = "Células Eliminadas: " + counterDestroyedCells;
+        }
     }
 
-    IEnumerator ControlarGeneraciones()
+    IEnumerator ControlGenerations()
     {
         while (true)
         {
             // Esperar hasta el próximo intervalo
-            yield return new WaitForSeconds(intervaloTiempo);
+            yield return new WaitForSeconds(intervalTime);
 
             // Destruir células existentes
-            foreach (GameObject celula in celulasExistentes)
+            foreach (GameObject celula in existingcells)
             {
                 Destroy(celula);
             }
-            celulasExistentes.Clear();
+            existingcells.Clear();
 
             // Esperar un frame para asegurar que OnDestroy() se llama en las células
             yield return new WaitForEndOfFrame();
 
             // Preparar experiencias para la siguiente generación
-            experienciasPrevias.Clear();
-            experienciasPrevias.AddRange(experienciasActuales);
-            experienciasActuales.Clear();
+            previousExperiences.Clear();
+            previousExperiences.AddRange(currentExperiences);
+            currentExperiences.Clear();
 
             // Filtrar experiencias para obtener las células supervivientes
-            experienciasSupervivientes.Clear();
-            foreach (ExperienciaCelula experiencia in experienciasPrevias)
+            experiencesSurvivors.Clear();
+            foreach (ExperienceCell experience in previousExperiences)
             {
-                if (experiencia.sobrevivio)
+                if (experience.survived)
                 {
-                    experienciasSupervivientes.Add(experiencia);
+                    experiencesSurvivors.Add(experience);
                 }
             }
 
             // Reducir gradualmente la variación de mutación
-            ActualizarVariacionMutacion();
+            UpdateVariationMutation();
 
             // Generar nuevas células
-            GenerarNuevaGeneracion();
+            GenerateNewGeneration();
         }
     }
 
-    void GenerarCelulasIniciales()
+    void GenerateInitialCells()
     {
-        contadorGeneraciones = 1;
-        for (int i = 0; i < numeroDeCelulas; i++)
+        countRounds++;
+        rounds.text = "Ronda: "+countRounds;
+        counterGenerations = 1;
+        for (int i = 0; i < numberofcells; i++)
         {
             // Generar atributos aleatorios
             Color colorAleatorio = new Color(Random.value, Random.value, Random.value);
@@ -97,45 +118,45 @@ public class GameController : MonoBehaviour
         }
     }
 
-    void GenerarNuevaGeneracion()
+    void GenerateNewGeneration()
     {
-        contadorGeneraciones++;
+        counterGenerations++;
 
-        if (experienciasSupervivientes.Count > 0)
+        if (experiencesSurvivors.Count > 0)
         {
             // Si hay células supervivientes, usarlas como base para la nueva generación
-            for (int i = 0; i < numeroDeCelulas; i++)
+            for (int i = 0; i < numberofcells; i++)
             {
                 // Seleccionar un padre basado en su tiempo de vida
-                ExperienciaCelula experienciaPadre = SeleccionarPadrePorTiempoDeVida();
+                ExperienceCell experienciaPadre = SelectParentByLifetime();
 
                 // Aplicar mutaciones
-                Color colorMutado = MutarColor(experienciaPadre.color, variacionActual);
-                float tamañoMutado = MutarTamaño(experienciaPadre.tamaño, variacionActual);
+                Color colorMutado = MutateColor(experienciaPadre.color, currentvariation);
+                float tamañoMutado = MutarTamaño(experienciaPadre.size, currentvariation);
 
-                CrearNuevaCelula(colorMutado, tamañoMutado, experienciaPadre.idPadre);
+                CrearNuevaCelula(colorMutado, tamañoMutado, experienciaPadre.idFather);
             }
 
             // Resetear ultimaCelulaEliminada ya que tenemos supervivientes
-            ultimaCelulaEliminada = null;
+            lastCellDeleted = null;
         }
         else
         {
             // Si no hay células supervivientes, usar la última célula eliminada
-            if (ultimaCelulaEliminada != null)
+            if (lastCellDeleted != null)
             {
-                for (int i = 0; i < numeroDeCelulas; i++)
+                for (int i = 0; i < numberofcells; i++)
                 {
-                    Color colorMutado = MutarColor(ultimaCelulaEliminada.color, variacionActual);
-                    float tamañoMutado = MutarTamaño(ultimaCelulaEliminada.tamaño, variacionActual);
+                    Color colorMutado = MutateColor(lastCellDeleted.color, currentvariation);
+                    float tamañoMutado = MutarTamaño(lastCellDeleted.size, currentvariation);
 
-                    CrearNuevaCelula(colorMutado, tamañoMutado, ultimaCelulaEliminada.idPadre);
+                    CrearNuevaCelula(colorMutado, tamañoMutado, lastCellDeleted.idFather);
                 }
             }
             else
             {
                 // Si no hay información, generar células aleatorias
-                GenerarCelulasIniciales();
+                GenerateInitialCells();
             }
         }
     }
@@ -156,30 +177,30 @@ public class GameController : MonoBehaviour
         nuevaCelula.GetComponent<SpriteRenderer>().color = color;
 
         // Añadir a la lista de células existentes
-        celulasExistentes.Add(nuevaCelula);
+        existingcells.Add(nuevaCelula);
 
         // Registrar la experiencia inicial
-        ExperienciaCelula nuevaExperiencia = new ExperienciaCelula();
-        nuevaExperiencia.color = color;
-        nuevaExperiencia.tamaño = tamaño;
-        nuevaExperiencia.sobrevivio = false; // Por defecto, asumimos que no sobrevivirá
-        nuevaExperiencia.generacion = contadorGeneraciones;
-        nuevaExperiencia.idPadre = idPadre;
-        nuevaExperiencia.tiempoVida = 0f; // Inicializar el tiempo de vida
+        ExperienceCell newExperience = new ExperienceCell();
+        newExperience.color = color;
+        newExperience.size = tamaño;
+        newExperience.survived = false; // Por defecto, asumimos que no sobrevivirá
+        newExperience.generation = counterGenerations;
+        newExperience.idFather = idPadre;
+        newExperience.timeLife = 0f; // Inicializar el tiempo de vida
 
-        experienciasActuales.Add(nuevaExperiencia);
+        currentExperiences.Add(newExperience);
 
         // Asignar el índice de experiencia a la célula
         Cell scriptCelula = nuevaCelula.GetComponent<Cell>();
-        scriptCelula.indiceExperiencia = experienciasActuales.Count - 1;
+        scriptCelula.indiceExperiencia = currentExperiences.Count - 1;
 
         // Asignar un identificador único a la célula
-        scriptCelula.idCelula = contadorCelulas;
-        contadorCelulas++;
+        scriptCelula.idCelula = countercells;
+        countercells++;
     }
 
     // Función para mutar el color con variación adaptativa
-    Color MutarColor(Color colorOriginal, float variacion)
+    Color MutateColor(Color colorOriginal, float variacion)
     {
         float r = Mathf.Clamp01(colorOriginal.r + Random.Range(-variacion, variacion));
         float g = Mathf.Clamp01(colorOriginal.g + Random.Range(-variacion, variacion));
@@ -195,20 +216,20 @@ public class GameController : MonoBehaviour
     }
 
     // Seleccionar un padre basado en el tiempo de vida (más tiempo de vida = más probabilidad)
-    ExperienciaCelula SeleccionarPadrePorTiempoDeVida()
+    ExperienceCell SelectParentByLifetime()
     {
         float sumaTiempoVida = 0f;
-        foreach (var exp in experienciasSupervivientes)
+        foreach (var exp in experiencesSurvivors)
         {
-            sumaTiempoVida += exp.tiempoVida;
+            sumaTiempoVida += exp.timeLife;
         }
 
         float valorAleatorio = Random.Range(0f, sumaTiempoVida);
         float acumulado = 0f;
 
-        foreach (var exp in experienciasSupervivientes)
+        foreach (var exp in experiencesSurvivors)
         {
-            acumulado += exp.tiempoVida;
+            acumulado += exp.timeLife;
             if (acumulado >= valorAleatorio)
             {
                 return exp;
@@ -216,23 +237,23 @@ public class GameController : MonoBehaviour
         }
 
         // En caso de que no se haya retornado aún, devolver el último
-        return experienciasSupervivientes[experienciasSupervivientes.Count - 1];
+        return experiencesSurvivors[experiencesSurvivors.Count - 1];
     }
 
     // Método para registrar la última célula eliminada
-    public void RegistrarUltimaCelulaEliminada(ExperienciaCelula experiencia)
+    public void RegisterLastCellDeleted(ExperienceCell experiencia)
     {
-        ultimaCelulaEliminada = experiencia;
+        lastCellDeleted = experiencia;
     }
 
     // Método para reducir gradualmente la variación de mutación
-    void ActualizarVariacionMutacion()
+    void UpdateVariationMutation()
     {
         // Reducir la variación en un porcentaje cada generación
         float factorReduccion = 0.9f; // Reduce la variación en un 10% cada generación
-        variacionActual *= factorReduccion;
+        currentvariation *= factorReduccion;
 
         // Asegurar que la variación no sea menor que la mínima establecida
-        variacionActual = Mathf.Max(variacionActual, variacionMinima);
+        currentvariation = Mathf.Max(currentvariation, minimumVariation);
     }
 }
